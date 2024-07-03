@@ -1,0 +1,50 @@
+version: '3.10'
+services:
+  fastapi:
+    container_name: "fastapi"
+    build: .
+    command: uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - .:/code
+    networks:
+      - backend
+  bot:
+    container_name: "bot"
+    build: .
+    command: python bot/bot.py
+    restart: always
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - SECRET_KEY=${SECRET_KEY}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - fastapi
+    networks:
+      - backend
+  db:
+    image: postgres
+    container_name: postgres
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+    volumes:
+      - .data/db:/var/lib/postgresql/data
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  db:
+    driver: local
