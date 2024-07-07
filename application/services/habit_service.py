@@ -7,13 +7,17 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import joinedload
 from starlette import status
 
+from chatbot_logger import add_logger, decorator_main_logger
 from models.user_models import User
 
 from models.habit_models import HabitTracking
 
 from models.habit_models import Habit
 
+logger = add_logger(__name__)
 
+
+@decorator_main_logger(logger)
 async def add_new_habit(session: AsyncSession, data: dict) -> None:
     """Create a new habit"""
     result = await session.execute(
@@ -32,14 +36,17 @@ async def add_new_habit(session: AsyncSession, data: dict) -> None:
     await session.commit()
 
 
+@decorator_main_logger(logger)
 async def get_all_habits(session: AsyncSession, idd: int) -> list:
     """Getting all habits"""
     user = await session.execute(select(User).where(User.telegram_id == idd))
     user = user.scalar_one_or_none()
     if not user:
+        text = "User does not exist."
+        logger.error(text)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User does not exist.",
+            detail=text,
         )
     stmt = (
         select(Habit)
@@ -61,6 +68,7 @@ async def get_all_habits(session: AsyncSession, idd: int) -> list:
     return lst
 
 
+@decorator_main_logger(logger)
 async def get_habit(session: AsyncSession, idd: int) -> Any:
     """Getting a one habit"""
     obj = await session.execute(
@@ -68,19 +76,23 @@ async def get_habit(session: AsyncSession, idd: int) -> Any:
     )
     obj = obj.scalar_one_or_none()
     if not obj:
+        text = "Habit does not exist."
+        logger.error(text)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Habit does not exist.",
+            detail=text,
         )
     return obj
 
 
+@decorator_main_logger(logger)
 async def get_a_one_habit(session: AsyncSession, idd: int) -> Any:
     """Helper getting a one habit"""
     obj = await get_habit(session=session, idd=idd)
     return obj
 
 
+@decorator_main_logger(logger)
 async def update_habit(session: AsyncSession, idd: int, data: dict) -> None:
     """Updating a habit"""
     obj = await get_habit(session=session, idd=idd)
@@ -91,6 +103,7 @@ async def update_habit(session: AsyncSession, idd: int, data: dict) -> None:
     await session.commit()
 
 
+@decorator_main_logger(logger)
 async def delete_a_one_habit(session: AsyncSession, idd: int) -> None:
     """Delete a habit"""
     obj = await get_habit(session=session, idd=idd)
@@ -98,6 +111,7 @@ async def delete_a_one_habit(session: AsyncSession, idd: int) -> None:
     await session.commit()
 
 
+@decorator_main_logger(logger)
 async def track_habit(session: AsyncSession, idd: int, extra=False) -> None:
     """Mark or reset count of a habit"""
     obj = await get_habit(session=session, idd=idd)

@@ -1,6 +1,13 @@
+import os
+import sys
 from datetime import datetime
 
 from aiogram import types
+
+sys.path.append(os.path.join(os.getcwd()))
+from chatbot_logger import add_logger
+
+logger = add_logger(__name__)
 
 
 def check_date(date: str) -> bool:

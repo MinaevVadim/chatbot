@@ -3,6 +3,7 @@ from fastapi.exceptions import HTTPException
 from fastapi import Depends, APIRouter
 from starlette import status
 
+from chatbot_logger import add_logger
 from dependencies import db
 
 from schemas.habit_schemas import HabitSchema, HabitUpdateSchema
@@ -18,6 +19,8 @@ from services.habit_service import (
 )
 
 router = APIRouter(prefix="/habit", tags=["habits"])
+
+logger = add_logger(__name__)
 
 
 @router.post(
@@ -58,9 +61,11 @@ async def get_habit(
     habit = await get_a_one_habit(session=session, idd=idd)
     if habit:
         return habit.to_dict()
+    text = "Habit does not exist."
+    logger.error(text)
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Habit does not exist.",
+        detail=text,
     )
 
 
