@@ -27,6 +27,7 @@
 * Aiogram
 * FastAPI
 * PyJWT
+* Pytest, Factory-Boy, Faker
 * Apscheduler
 * Docker-compose.
 
