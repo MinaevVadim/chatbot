@@ -2,6 +2,8 @@ import datetime
 
 import bcrypt
 import jwt
+from fastapi import HTTPException
+from starlette import status
 
 from env_config import settings
 
@@ -34,3 +36,10 @@ def hash_password(password: str) -> bytes:
 def validate_password(password: str, hashed_password: bytes) -> bool:
     """Validate password"""
     return bcrypt.checkpw(password.encode(), hashed_password)
+
+
+def obj_does_not_exist(obj: str):
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"{obj} does not exist.",
+    )

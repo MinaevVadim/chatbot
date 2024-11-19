@@ -1,5 +1,4 @@
 from typing import Annotated, Any
-from fastapi.exceptions import HTTPException
 from fastapi import Depends, APIRouter
 from starlette import status
 
@@ -17,6 +16,7 @@ from services.habit_service import (
     delete_a_one_habit,
     track_habit,
 )
+from utils import obj_does_not_exist
 
 router = APIRouter(prefix="/habit", tags=["habits"])
 
@@ -32,7 +32,9 @@ async def add_habit(
     data: HabitSchema,
     session: Annotated[Any, Depends(db)],
 ):
-    await add_new_habit(session=session, data=dict(data))
+    habit = await add_new_habit(session=session, data=dict(data))
+    if habit is None:
+        obj_does_not_exist("User")
     return StatusResponseSchema(status=True)
 
 
@@ -46,6 +48,8 @@ async def get_habits(
     session: Annotated[Any, Depends(db)],
 ):
     habits = await get_all_habits(session=session, idd=telegram_id)
+    if habits is None:
+        obj_does_not_exist("Habit")
     return habits
 
 
@@ -61,12 +65,7 @@ async def get_habit(
     habit = await get_a_one_habit(session=session, idd=idd)
     if habit:
         return habit.to_dict()
-    text = "Habit does not exist."
-    logger.error(text)
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail=text,
-    )
+    obj_does_not_exist("Habit")
 
 
 @router.patch(
@@ -79,7 +78,9 @@ async def habit_update(
     idd: int,
     session: Annotated[Any, Depends(db)],
 ):
-    await update_habit(session=session, idd=idd, data=dict(data))
+    habit = await update_habit(session=session, idd=idd, data=dict(data))
+    if habit is None:
+        obj_does_not_exist("Habit")
     return StatusResponseSchema(status=True)
 
 
@@ -92,7 +93,9 @@ async def delete_habit(
     idd: int,
     session: Annotated[Any, Depends(db)],
 ):
-    await delete_a_one_habit(session=session, idd=idd)
+    habit = await delete_a_one_habit(session=session, idd=idd)
+    if not habit:
+        obj_does_not_exist("Habit")
     return StatusResponseSchema(status=True)
 
 
@@ -107,7 +110,9 @@ async def mark_habit(
     extra: bool = None,
 ):
     if extra:
-        await track_habit(session=session, idd=idd, extra=extra)
+        habit = await track_habit(session=session, idd=idd, extra=extra)
     else:
-        await track_habit(session=session, idd=idd)
+        habit = await track_habit(session=session, idd=idd)
+    if not habit:
+        obj_does_not_exist("Habit")
     return StatusResponseSchema(status=True)

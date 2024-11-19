@@ -1,7 +1,7 @@
 import datetime
 from typing import Any
 
-from sqlalchemy import select, Cast, Integer, func
+from sqlalchemy import select, Cast, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import joinedload
@@ -18,12 +18,14 @@ logger = add_logger(__name__)
 
 
 @decorator_main_logger(logger)
-async def add_new_habit(session: AsyncSession, data: dict) -> None:
+async def add_new_habit(session: AsyncSession, data: dict) -> bool | None:
     """Create a new habit"""
     result = await session.execute(
         select(User).where(User.telegram_id == Cast(data.get("telegram_id"), Integer))
     )
     user = result.scalar_one_or_none()
+    if not user:
+        return
     new_habit = Habit(
         name_habit=data.get("name_habit"),
         description=data.get("description"),
@@ -34,24 +36,20 @@ async def add_new_habit(session: AsyncSession, data: dict) -> None:
     await session.flush()
     session.add(HabitTracking(habit=new_habit.id))
     await session.commit()
+    return True
 
 
 @decorator_main_logger(logger)
-async def get_all_habits(session: AsyncSession, idd: int) -> list:
+async def get_all_habits(session: AsyncSession, idd: int) -> list | None:
     """Getting all habits"""
     user = await session.execute(select(User).where(User.telegram_id == idd))
     user = user.scalar_one_or_none()
-    if not user:
-        text = "User does not exist."
-        logger.error(text)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=text,
-        )
+    if user is None:
+        return
     stmt = (
         select(Habit)
         .options(joinedload(Habit.habit_tracking))
-        .where(Habit.user == Cast(user.id, Integer))
+        .where(Habit.user == user.id)
     )
     result = await session.execute(stmt)
     lst = []
@@ -75,13 +73,6 @@ async def get_habit(session: AsyncSession, idd: int) -> Any:
         select(Habit).options(joinedload(Habit.habit_tracking)).where(Habit.id == idd)
     )
     obj = obj.scalar_one_or_none()
-    if not obj:
-        text = "Habit does not exist."
-        logger.error(text)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=text,
-        )
     return obj
 
 
@@ -93,28 +84,36 @@ async def get_a_one_habit(session: AsyncSession, idd: int) -> Any:
 
 
 @decorator_main_logger(logger)
-async def update_habit(session: AsyncSession, idd: int, data: dict) -> None:
+async def update_habit(session: AsyncSession, idd: int, data: dict) -> None | bool:
     """Updating a habit"""
     obj = await get_habit(session=session, idd=idd)
+    if obj is None:
+        return
     for key, value in data.items():
         if value == "-":
             continue
         setattr(obj, key, value)
     await session.commit()
+    return True
 
 
 @decorator_main_logger(logger)
-async def delete_a_one_habit(session: AsyncSession, idd: int) -> None:
+async def delete_a_one_habit(session: AsyncSession, idd: int) -> None | bool:
     """Delete a habit"""
     obj = await get_habit(session=session, idd=idd)
+    if not obj:
+        return
     await session.delete(obj)
     await session.commit()
+    return True
 
 
 @decorator_main_logger(logger)
-async def track_habit(session: AsyncSession, idd: int, extra=False) -> None:
+async def track_habit(session: AsyncSession, idd: int, extra=False) -> None | bool:
     """Mark or reset count of a habit"""
     obj = await get_habit(session=session, idd=idd)
+    if not obj:
+        return
     habit_track = await session.execute(
         select(HabitTracking).where(HabitTracking.habit == Cast(obj.id, Integer))
     )
@@ -125,3 +124,4 @@ async def track_habit(session: AsyncSession, idd: int, extra=False) -> None:
     else:
         habit.count += 1
     await session.commit()
+    return True
